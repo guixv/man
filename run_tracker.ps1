@@ -7,7 +7,7 @@ $PROJECT_DIR = "E:\Programs\code\man"
 
 
 # 修改成你的实际 Python 路径
-$PYTHON = "C:\Users\cqiu\AppData\Local\Programs\Python\Python314\python.exe"
+$PYTHON = "C:\Users\Administrator\AppData\Local\Programs\Python\Python36\python.exe"
 
 
 $LOG_DIR = "$PROJECT_DIR\logs"
@@ -64,6 +64,14 @@ Set-Location $PROJECT_DIR
 
 & $PYTHON tracker.py 2>&1 |
     Tee-Object -FilePath $RUN_LOG -Append
+
+if ($LASTEXITCODE -ne 0) {
+
+    "Tracker failed with exit code $LASTEXITCODE" |
+        Tee-Object -FilePath $RUN_LOG -Append
+
+    exit $LASTEXITCODE
+}
 
 
 
