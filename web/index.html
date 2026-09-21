@@ -166,6 +166,30 @@
             height: 280px;
         }
 
+        .chart-tooltip {
+            position: absolute;
+            z-index: 2;
+            display: none;
+            min-width: 128px;
+            padding: 9px 11px;
+            color: var(--ink);
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 5px 18px rgba(24, 33, 43, .12);
+            pointer-events: none;
+            font: 12px/1.55 ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .chart-tooltip strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+
+        .chart-tooltip .added-value { color: var(--green); }
+
+        .chart-tooltip .removed-value { color: var(--red); }
+
         canvas {
             display: block;
             width: 100%;
@@ -327,7 +351,10 @@
                 <div class="legend"><span>Added</span><span class="removed-key">Removed</span></div>
             </div>
             <div class="chart-panel">
-                <div class="chart-wrap"><canvas id="trend-chart" aria-label="Added and removed members by day"></canvas></div>
+                <div class="chart-wrap">
+                    <canvas id="trend-chart" aria-label="Added and removed members by day"></canvas>
+                    <div class="chart-tooltip" id="chart-tooltip"></div>
+                </div>
             </div>
         </section>
 
@@ -346,9 +373,12 @@
         const refreshMs = 3600000;
         let allChanges = [];
         let dailyChanges = [];
+        let chartModel = null;
         const viewSelect = document.querySelector("#view");
         const dateSelect = document.querySelector("#date");
         const searchInput = document.querySelector("#search");
+        const chart = document.querySelector("#trend-chart");
+        const chartTooltip = document.querySelector("#chart-tooltip");
 
         function parseCsv(text) {
             const rows = [];
@@ -400,6 +430,7 @@
             context.clearRect(0, 0, width, height);
 
             const days = [...new Set(dailyChanges.map(item => item.day))].sort();
+            chartModel = null;
             if (!days.length) return;
 
             const counts = days.map(day => ({
@@ -413,6 +444,7 @@
             const chartHeight = height - padding.top - padding.bottom;
             const x = index => padding.left + (counts.length === 1 ? chartWidth / 2 : index * chartWidth / (counts.length - 1));
             const y = value => padding.top + chartHeight - value * chartHeight / maximum;
+            chartModel = { counts, x, y, width, height };
 
             context.font = "11px ui-sans-serif, system-ui, sans-serif";
             context.fillStyle = "#68737d";
@@ -457,6 +489,85 @@
             });
         }
 
+        function hideChartTooltip() {
+            chartTooltip.style.display = "none";
+        }
+
+        function distanceToSegment(pointX, pointY, startX, startY, endX, endY) {
+            const deltaX = endX - startX;
+            const deltaY = endY - startY;
+            const lengthSquared = deltaX * deltaX + deltaY * deltaY;
+            if (!lengthSquared) return Math.hypot(pointX - startX, pointY - startY);
+            const projection = Math.max(0, Math.min(1, ((pointX - startX) * deltaX + (pointY - startY) * deltaY) / lengthSquared));
+            return Math.hypot(pointX - (startX + projection * deltaX), pointY - (startY + projection * deltaY));
+        }
+
+        function chartPointAt(clientX, clientY) {
+            if (!chartModel) return null;
+            const bounds = chart.getBoundingClientRect();
+            const scaleX = chartModel.width / bounds.width;
+            const scaleY = chartModel.height / bounds.height;
+            const pointX = (clientX - bounds.left) * scaleX;
+            const pointY = (clientY - bounds.top) * scaleY;
+            let closest = null;
+            chartModel.counts.forEach((item, index) => {
+                let distanceToPoint = Math.min(
+                    Math.hypot(pointX - chartModel.x(index), pointY - chartModel.y(item.Added)),
+                    Math.hypot(pointX - chartModel.x(index), pointY - chartModel.y(item.Removed)),
+                );
+                let hitIndex = index;
+                if (index > 0) {
+                    const previous = chartModel.counts[index - 1];
+                    const addedDistance = distanceToSegment(
+                        pointX,
+                        pointY,
+                        chartModel.x(index - 1),
+                        chartModel.y(previous.Added),
+                        chartModel.x(index),
+                        chartModel.y(item.Added),
+                    );
+                    const removedDistance = distanceToSegment(
+                        pointX,
+                        pointY,
+                        chartModel.x(index - 1),
+                        chartModel.y(previous.Removed),
+                        chartModel.x(index),
+                        chartModel.y(item.Removed),
+                    );
+                    const segmentDistance = Math.min(addedDistance, removedDistance);
+                    if (segmentDistance < distanceToPoint) {
+                        distanceToPoint = segmentDistance;
+                        hitIndex = pointX - chartModel.x(index - 1) < chartModel.x(index) - pointX ? index - 1 : index;
+                    }
+                }
+                if (distanceToPoint <= 14 && (!closest || distanceToPoint < closest.distance)) {
+                    closest = { item: chartModel.counts[hitIndex], index: hitIndex, distance: distanceToPoint, pointX, pointY };
+                }
+            });
+            return closest;
+        }
+
+        function showChartTooltip(hit) {
+            const item = hit.item;
+            chartTooltip.innerHTML = `<strong>${escapeHtml(item.day)}</strong><span class="added-value">Added: ${item.Added}</span><br><span class="removed-value">Removed: ${item.Removed}</span>`;
+            chartTooltip.style.display = "block";
+            const left = Math.min(Math.max(8, chartModel.x(hit.index) - 56), chartModel.width - chartTooltip.offsetWidth - 8);
+            const top = Math.max(8, Math.min(chartModel.y(Math.max(item.Added, item.Removed)) - 76, chartModel.height - chartTooltip.offsetHeight - 8));
+            chartTooltip.style.left = `${left}px`;
+            chartTooltip.style.top = `${top}px`;
+        }
+
+        async function selectChartDay(day) {
+            if (viewSelect.value !== "daily") {
+                viewSelect.value = "daily";
+                await loadChanges();
+            }
+            if ([...dateSelect.options].some(option => option.value === day)) {
+                dateSelect.value = day;
+                render();
+            }
+        }
+
         function escapeHtml(value) { return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char])); }
 
         async function loadChanges() {
@@ -487,6 +598,17 @@
         dateSelect.addEventListener("change", render);
         searchInput.addEventListener("input", render);
         viewSelect.addEventListener("change", loadChanges);
+        chart.addEventListener("mousemove", event => {
+            const hit = chartPointAt(event.clientX, event.clientY);
+            if (hit) showChartTooltip(hit);
+            else hideChartTooltip();
+        });
+        chart.addEventListener("mouseleave", hideChartTooltip);
+        chart.addEventListener("click", event => {
+            const hit = chartPointAt(event.clientX, event.clientY);
+            if (hit) selectChartDay(hit.item.day);
+        });
+        window.addEventListener("resize", renderChart);
         loadChanges();
         setInterval(loadChanges, refreshMs);
     </script>
