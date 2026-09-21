@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GitHub Member Changes</title>
+    <style>
+        :root {
+            --ink: #18212b;
+            --muted: #68737d;
+            --paper: #f4f1ea;
+            --panel: #fffdf8;
+            --line: #ded8cd;
+            --green: #237a57;
+            --green-soft: #e0f0e8;
+            --red: #b44d42;
+            --red-soft: #f5e3df;
+            --yellow: #e9b949;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: radial-gradient(circle at 8% 0%, #fff8db 0, transparent 32%), var(--paper);
+            font-family: Georgia, "Times New Roman", serif;
+        }
+
+        main {
+            width: min(1120px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 52px 0 72px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            gap: 24px;
+            align-items: end;
+            margin-bottom: 34px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(2.2rem, 5vw, 4.6rem);
+            line-height: .95;
+            letter-spacing: 0;
+            font-weight: 500;
+        }
+
+        .subtitle {
+            max-width: 330px;
+            margin: 0;
+            color: var(--muted);
+            font: 15px/1.5 ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 18px 0;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+
+        label {
+            color: var(--muted);
+            font: 12px/1 ui-sans-serif, system-ui, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        select,
+        input {
+            border: 1px solid var(--line);
+            border-radius: 3px;
+            background: var(--panel);
+            color: var(--ink);
+            padding: 10px 12px;
+            font: 15px Georgia, serif;
+        }
+
+        input {
+            min-width: 220px;
+            margin-left: auto;
+        }
+
+        .status {
+            margin-left: auto;
+            color: var(--muted);
+            font: 12px ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin: 26px 0;
+        }
+
+        .metric {
+            padding: 18px 20px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-top: 4px solid var(--yellow);
+        }
+
+        .metric:nth-child(2) {
+            border-top-color: var(--green);
+        }
+
+        .metric:nth-child(3) {
+            border-top-color: var(--red);
+        }
+
+        .metric strong {
+            display: block;
+            font-size: 2.2rem;
+            font-weight: 500;
+        }
+
+        .metric span {
+            color: var(--muted);
+            font: 12px ui-sans-serif, system-ui, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin: 34px 0 12px;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 1.7rem;
+            font-weight: 500;
+        }
+
+        .count {
+            color: var(--muted);
+            font: 13px ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .rows {
+            display: grid;
+            gap: 8px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 116px 1fr minmax(160px, .65fr);
+            gap: 16px;
+            align-items: center;
+            padding: 14px 16px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+        }
+
+        .badge {
+            width: max-content;
+            padding: 5px 8px;
+            border-radius: 2px;
+            font: 11px ui-sans-serif, system-ui, sans-serif;
+            font-weight: 700;
+            letter-spacing: .07em;
+        }
+
+        .added .badge {
+            color: var(--green);
+            background: var(--green-soft);
+        }
+
+        .removed .badge {
+            color: var(--red);
+            background: var(--red-soft);
+        }
+
+        .name {
+            font-size: 1.12rem;
+        }
+
+        .login {
+            color: var(--muted);
+            font: 13px ui-monospace, monospace;
+            overflow-wrap: anywhere;
+        }
+
+        .empty,
+        .error {
+            padding: 26px;
+            color: var(--muted);
+            background: var(--panel);
+            border: 1px dashed var(--line);
+            font: 14px ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .error {
+            color: var(--red);
+        }
+
+        footer {
+            margin-top: 38px;
+            color: var(--muted);
+            font: 12px ui-sans-serif, system-ui, sans-serif;
+        }
+
+        @media (max-width: 700px) {
+            main {
+                width: min(100% - 24px, 560px);
+                padding-top: 32px;
+            }
+
+            header {
+                display: block;
+            }
+
+            .subtitle {
+                margin-top: 16px;
+            }
+
+            .summary {
+                gap: 8px;
+            }
+
+            .metric {
+                padding: 14px 12px;
+            }
+
+            .metric strong {
+                font-size: 1.7rem;
+            }
+
+            input {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .status {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .row {
+                grid-template-columns: 1fr;
+                gap: 7px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <header>
+            <h1>Member<br>Changes</h1>
+            <p class="subtitle">GitHub organization member movements, grouped by the day they were detected.</p>
+        </header>
+
+        <section class="toolbar" aria-label="Filters">
+            <label for="date">Date</label>
+            <select id="date">
+                <option>Loading...</option>
+            </select>
+            <input id="search" type="search" placeholder="Search name or login" aria-label="Search name or login">
+            <span class="status" id="status">Loading changes...</span>
+        </section>
+
+        <section class="summary" aria-label="Summary">
+            <div class="metric"><strong id="total">0</strong><span>Total changes</span></div>
+            <div class="metric"><strong id="added-total">0</strong><span>Added</span></div>
+            <div class="metric"><strong id="removed-total">0</strong><span>Removed</span></div>
+        </section>
+
+        <section>
+            <div class="section-title">
+                <h2>Activity</h2><span class="count" id="visible-count"></span>
+            </div>
+            <div class="rows" id="rows"></div>
+        </section>
+        <footer>Source: logs/changes.csv · Refreshes automatically every 60 seconds</footer>
+    </main>
+
+    <script>
+        const source = "../logs/changes.csv";
+        const refreshMs = 60000;
+        let allChanges = [];
+        const dateSelect = document.querySelector("#date");
+        const searchInput = document.querySelector("#search");
+
+        function parseCsv(text) {
+            const rows = [];
+            let row = [], value = "", quoted = false;
+            for (let index = 0; index < text.length; index += 1) {
+                const char = text[index];
+                if (char === '"' && text[index + 1] === '"' && quoted) { value += '"'; index += 1; }
+                else if (char === '"') quoted = !quoted;
+                else if (char === "," && !quoted) { row.push(value); value = ""; }
+                else if ((char === "\n" || char === "\r") && !quoted) {
+                    if (char === "\r" && text[index + 1] === "\n") index += 1;
+                    row.push(value); if (row.some(Boolean)) rows.push(row); row = []; value = "";
+                } else value += char;
+            }
+            if (value || row.length) { row.push(value); rows.push(row); }
+            const headers = rows.shift() || [];
+            return rows.map(columns => Object.fromEntries(headers.map((header, index) => [header, columns[index] || ""])));
+        }
+
+        function visibleChanges(changes) {
+            const removedNames = new Set(changes.filter(item => item.action === "Removed").map(item => `${item.day}|${item.name.trim().toLocaleLowerCase()}`));
+            return changes.filter(item => item.action !== "Added" || !removedNames.has(`${item.day}|${item.name.trim().toLocaleLowerCase()}`));
+        }
+
+        function render() {
+            const selectedDay = dateSelect.value;
+            const query = searchInput.value.trim().toLocaleLowerCase();
+            const selected = allChanges.filter(item => item.day === selectedDay && (!query || `${item.name} ${item.login}`.toLocaleLowerCase().includes(query)));
+            const added = selected.filter(item => item.action === "Added");
+            const removed = selected.filter(item => item.action === "Removed");
+            document.querySelector("#total").textContent = selected.length;
+            document.querySelector("#added-total").textContent = added.length;
+            document.querySelector("#removed-total").textContent = removed.length;
+            document.querySelector("#visible-count").textContent = `${selected.length} records`;
+            document.querySelector("#rows").innerHTML = selected.length ? selected.map(item => `<article class="row ${item.action.toLowerCase()}"><span class="badge">${item.action.toUpperCase()}</span><span class="name">${escapeHtml(item.name)}</span><span class="login">${escapeHtml(item.login)}</span></article>`).join("") : '<div class="empty">No changes for this date.</div>';
+        }
+
+        function escapeHtml(value) { return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char])); }
+
+        async function loadChanges() {
+            try {
+                const response = await fetch(`${source}?t=${Date.now()}`, { cache: "no-store" });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const parsed = parseCsv(await response.text()).filter(item => item.time && item.action && item.name).map(item => ({ ...item, day: item.time.slice(0, 10) }));
+                allChanges = visibleChanges(parsed).sort((a, b) => b.time.localeCompare(a.time));
+                const days = [...new Set(allChanges.map(item => item.day))];
+                const previous = dateSelect.value;
+                dateSelect.innerHTML = days.length ? days.map(day => `<option value="${day}">${day}</option>`).join("") : "<option>No data</option>";
+                if (days.includes(previous)) dateSelect.value = previous;
+                render();
+                document.querySelector("#status").textContent = `Updated ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                document.querySelector("#rows").innerHTML = `<div class="error">Unable to load changes.csv. Start a local server from the project root.</div>`;
+                document.querySelector("#status").textContent = "Load failed";
+            }
+        }
+
+        dateSelect.addEventListener("change", render);
+        searchInput.addEventListener("input", render);
+        loadChanges();
+        setInterval(loadChanges, refreshMs);
+    </script>
+</body>
+
+</html>

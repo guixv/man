@@ -239,6 +239,21 @@ def compare_members(
     return added, removed
 
 
+def filter_replaced_members(added, removed):
+    removed_names = {
+        user["name"].strip().casefold()
+        for user in removed
+    }
+
+    filtered_added = [
+        user
+        for user in added
+        if user["name"].strip().casefold() not in removed_names
+    ]
+
+    return filtered_added, removed
+
+
 
 def append_change_log(
     added,
@@ -438,6 +453,11 @@ def main():
         added, removed = compare_members(
             compare_snapshot,
             today_snapshot,
+        )
+
+        added, removed = filter_replaced_members(
+            added,
+            removed,
         )
 
 

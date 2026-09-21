@@ -1,5 +1,13 @@
+import os
+
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
 # GitHub Personal Access Token
-GITHUB_TOKEN = "ghp_xxx"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "ghp_xxx")
 
 # Organization Name
 ORG_NAME = "mstr-kiai"

@@ -8,40 +8,26 @@ def parse_args():
         description="Compare two GitHub member CSV snapshots"
     )
 
-    parser.add_argument(
-        "old",
-        help="Old CSV snapshot file"
-    )
+    parser.add_argument("old", help="Old CSV snapshot file")
 
-    parser.add_argument(
-        "new",
-        help="New CSV snapshot file"
-    )
+    parser.add_argument("new", help="New CSV snapshot file")
 
     return parser.parse_args()
 
 
-
 def load_members(filename):
     if not os.path.exists(filename):
-        raise FileNotFoundError(
-            f"File not found: {filename}"
-        )
+        raise FileNotFoundError(f"File not found: {filename}")
 
     members = {}
 
-    with open(
-        filename,
-        encoding="utf-8"
-    ) as f:
-
+    with open(filename, encoding="utf-8") as f:
         reader = csv.DictReader(f)
 
         for row in reader:
             members[row["login"]] = row
 
     return members
-
 
 
 def compare_members(old_file, new_file):
@@ -52,18 +38,17 @@ def compare_members(old_file, new_file):
     old_logins = set(old_members.keys())
     new_logins = set(new_members.keys())
 
-    added = [
-        new_members[login]
-        for login in sorted(new_logins - old_logins)
-    ]
+    added = [new_members[login] for login in sorted(new_logins - old_logins)]
 
-    removed = [
-        old_members[login]
-        for login in sorted(old_logins - new_logins)
+    removed = [old_members[login] for login in sorted(old_logins - new_logins)]
+
+    removed_names = {user["name"].strip().casefold() for user in removed}
+
+    added = [
+        user for user in added if user["name"].strip().casefold() not in removed_names
     ]
 
     return added, removed
-
 
 
 def print_members(title, members, prefix):
@@ -78,11 +63,7 @@ def print_members(title, members, prefix):
         return
 
     for user in members:
-        print(
-            f"{prefix} {user['name']} "
-            f"({user['login']})"
-        )
-
+        print(f"{prefix} {user['name']} ({user['login']})")
 
 
 def save_result(added, removed):
@@ -93,7 +74,6 @@ def save_result(added, removed):
         newline="",
         encoding="utf-8",
     ) as f:
-
         writer = csv.DictWriter(
             f,
             fieldnames=[
@@ -127,7 +107,6 @@ def save_result(added, removed):
             )
 
 
-
 def main():
 
     args = parse_args()
@@ -137,42 +116,22 @@ def main():
         args.new,
     )
 
-    print(
-        f"\nCompare:"
-    )
+    print("\nCompare:")
 
-    print(
-        f"OLD: {args.old}"
-    )
+    print(f"OLD: {args.old}")
 
-    print(
-        f"NEW: {args.new}"
-    )
+    print(f"NEW: {args.new}")
 
+    print_members("Added Members", added, "+")
 
-    print_members(
-        "Added Members",
-        added,
-        "+"
-    )
-
-    print_members(
-        "Removed Members",
-        removed,
-        "-"
-    )
-
+    print_members("Removed Members", removed, "-")
 
     save_result(
         added,
         removed,
     )
 
-
-    print(
-        "\nSaved: compare_result.csv"
-    )
-
+    print("\nSaved: compare_result.csv")
 
 
 if __name__ == "__main__":
