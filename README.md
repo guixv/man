@@ -29,13 +29,15 @@ The daily PowerShell job rebuilds `period_changes.csv` after removing snapshots
 older than 30 days. This keeps the comparison aligned with the oldest snapshot
 that is still retained.
 
-Start it from the project root:
+Start the dashboard server from the project root:
 
 ```powershell
-python -m http.server 8765
+python server.py
 ```
 
-Then open `http://localhost:8765/web/` in a browser. The daily
+Then open `http://localhost:8765/web/` in a browser. The `Refresh members`
+button asks for confirmation, runs the tracker once, shows progress, and
+reloads the page data when finished. The daily
 `run_tracker.ps1` job keeps updating `logs/changes.csv`; refreshes will pick up
 new data automatically. The CSV files are intentionally ignored by Git.
 

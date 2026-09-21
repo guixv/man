@@ -97,6 +97,47 @@
             font: 12px ui-sans-serif, system-ui, sans-serif;
         }
 
+        .refresh-button {
+            border: 0;
+            border-radius: 3px;
+            padding: 10px 14px;
+            color: #fffdf8;
+            background: var(--ink);
+            cursor: pointer;
+            font: 700 12px ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .refresh-button:disabled { opacity: .55; cursor: wait; }
+
+        .refresh-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 5;
+            display: none;
+            place-items: center;
+            padding: 20px;
+            background: rgba(24, 33, 43, .34);
+        }
+
+        .refresh-modal.open { display: grid; }
+
+        .refresh-dialog {
+            width: min(420px, 100%);
+            padding: 24px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 12px 40px rgba(24, 33, 43, .2);
+        }
+
+        .refresh-dialog h2 { margin-bottom: 8px; }
+        .refresh-dialog p { margin: 0 0 20px; color: var(--muted); font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+        .refresh-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .refresh-actions button { border: 1px solid var(--line); padding: 9px 13px; background: transparent; cursor: pointer; font: 13px ui-sans-serif, system-ui, sans-serif; }
+        .refresh-actions .confirm { color: #fffdf8; background: var(--ink); border-color: var(--ink); }
+        .progress-track { height: 7px; margin: 16px 0 9px; overflow: hidden; background: var(--line); }
+        .progress-bar { width: 8%; height: 100%; background: var(--green); transition: width .3s ease; }
+        .progress-label { color: var(--muted); font: 12px ui-sans-serif, system-ui, sans-serif; }
+
         .summary {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -336,6 +377,7 @@
                 <option>Loading...</option>
             </select>
             <input id="search" type="search" placeholder="Search name or login" aria-label="Search name or login">
+            <button class="refresh-button" id="refresh-button" type="button">Refresh members</button>
             <span class="status" id="status">Loading changes...</span>
         </section>
 
@@ -367,6 +409,19 @@
         <footer>Source: logs/changes.csv · Refreshes automatically every hour</footer>
     </main>
 
+    <div class="refresh-modal" id="refresh-modal" role="dialog" aria-modal="true" aria-labelledby="refresh-title">
+        <div class="refresh-dialog">
+            <h2 id="refresh-title">Refresh member list?</h2>
+            <p id="refresh-message">This will query GitHub and update today's snapshot and change logs.</p>
+            <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+            <div class="progress-label" id="progress-label">Waiting for confirmation</div>
+            <div class="refresh-actions" id="refresh-actions">
+                <button id="cancel-refresh" type="button">Cancel</button>
+                <button class="confirm" id="confirm-refresh" type="button">Confirm refresh</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const dailySource = "../logs/changes.csv";
         const periodSource = "../logs/period_changes.csv";
@@ -379,6 +434,13 @@
         const searchInput = document.querySelector("#search");
         const chart = document.querySelector("#trend-chart");
         const chartTooltip = document.querySelector("#chart-tooltip");
+        const refreshButton = document.querySelector("#refresh-button");
+        const refreshModal = document.querySelector("#refresh-modal");
+        const confirmRefresh = document.querySelector("#confirm-refresh");
+        const cancelRefresh = document.querySelector("#cancel-refresh");
+        const progressBar = document.querySelector("#progress-bar");
+        const progressLabel = document.querySelector("#progress-label");
+        let refreshPoll = null;
 
         function parseCsv(text) {
             const rows = [];
@@ -595,9 +657,62 @@
             }
         }
 
+        function closeRefreshModal() {
+            refreshModal.classList.remove("open");
+            refreshButton.disabled = false;
+        }
+
+        function showRefreshModal() {
+            progressBar.style.width = "8%";
+            progressLabel.textContent = "Waiting for confirmation";
+            document.querySelector("#refresh-message").textContent = "This will query GitHub and update today's snapshot and change logs.";
+            document.querySelector("#refresh-actions").style.display = "flex";
+            refreshModal.classList.add("open");
+        }
+
+        async function pollRefresh() {
+            const response = await fetch("/api/refresh/status", { cache: "no-store" });
+            const state = await response.json();
+            const progress = { queued: 15, fetching: 45, refreshing: 78, done: 100, error: 100 }[state.stage] || 20;
+            progressBar.style.width = `${progress}%`;
+            progressLabel.textContent = state.message;
+            if (!state.running) {
+                clearInterval(refreshPoll);
+                refreshPoll = null;
+                if (state.stage === "done") {
+                    await loadChanges();
+                    setTimeout(closeRefreshModal, 700);
+                } else {
+                    document.querySelector("#refresh-message").textContent = state.error || "Refresh failed.";
+                    document.querySelector("#refresh-actions").style.display = "flex";
+                    refreshButton.disabled = false;
+                }
+            }
+        }
+
+        async function startRefresh() {
+            confirmRefresh.disabled = true;
+            cancelRefresh.disabled = true;
+            document.querySelector("#refresh-actions").style.display = "none";
+            progressLabel.textContent = "Starting refresh...";
+            try {
+                const response = await fetch("/api/refresh", { method: "POST" });
+                if (!response.ok) throw new Error(response.status === 409 ? "A refresh is already running." : "Unable to start refresh.");
+                refreshPoll = setInterval(pollRefresh, 700);
+                await pollRefresh();
+            } catch (error) {
+                document.querySelector("#refresh-message").textContent = error.message;
+                document.querySelector("#refresh-actions").style.display = "flex";
+                refreshButton.disabled = false;
+            }
+        }
+
         dateSelect.addEventListener("change", render);
         searchInput.addEventListener("input", render);
         viewSelect.addEventListener("change", loadChanges);
+        refreshButton.addEventListener("click", () => { refreshButton.disabled = true; showRefreshModal(); });
+        confirmRefresh.addEventListener("click", startRefresh);
+        cancelRefresh.addEventListener("click", closeRefreshModal);
         chart.addEventListener("mousemove", event => {
             const hit = chartPointAt(event.clientX, event.clientY);
             if (hit) showChartTooltip(hit);
