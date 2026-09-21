@@ -43,9 +43,9 @@ After pushing these code changes, update the machine that runs the scheduled
 job:
 
 ```powershell
-Set-Location E:\Programs\code\man
+Set-Location "path\to\man"
 git pull origin main
-& "C:\Users\Administrator\AppData\Local\Programs\Python\Python36\python.exe" -m pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 Keep the real `.env` on that machine. Also keep the dated files in
@@ -55,7 +55,7 @@ calculated from `members_latest.csv` alone.
 To rebuild the all-period comparison immediately, run:
 
 ```powershell
-& "C:\Users\Administrator\AppData\Local\Programs\Python\Python36\python.exe" tracker.py --refresh-period
+python tracker.py --refresh-period
 ```
 
 This writes `logs\period_changes.csv`, comparing the oldest retained dated

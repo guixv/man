@@ -3,11 +3,21 @@
 # =========================
 
 
-$PROJECT_DIR = "E:\Programs\code\man"
+$PROJECT_DIR = $PSScriptRoot
 
 
-# 修改成你的真实 Python 路径
-$PYTHON = "C:\Users\Administrator\AppData\Local\Programs\Python\Python36\python.exe"
+$PYTHON = "python"
+$ENV_FILE = Join-Path $PROJECT_DIR ".env"
+
+if (Test-Path $ENV_FILE) {
+    $PYTHON_LINE = Get-Content $ENV_FILE |
+        Where-Object { $_ -match '^\s*PYTHON_PATH\s*=' } |
+        Select-Object -First 1
+
+    if ($PYTHON_LINE) {
+        $PYTHON = ($PYTHON_LINE -replace '^\s*PYTHON_PATH\s*=\s*', '').Trim().Trim('"').Trim("'")
+    }
+}
 
 
 $LOG_DIR = "$PROJECT_DIR\logs"
