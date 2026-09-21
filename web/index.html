@@ -265,6 +265,11 @@
         </header>
 
         <section class="toolbar" aria-label="Filters">
+            <label for="view">View</label>
+            <select id="view">
+                <option value="daily">Daily changes</option>
+                <option value="period">Oldest to latest</option>
+            </select>
             <label for="date">Date</label>
             <select id="date">
                 <option>Loading...</option>
@@ -289,9 +294,11 @@
     </main>
 
     <script>
-        const source = "../logs/changes.csv";
+        const dailySource = "../logs/changes.csv";
+        const periodSource = "../logs/period_changes.csv";
         const refreshMs = 60000;
         let allChanges = [];
+        const viewSelect = document.querySelector("#view");
         const dateSelect = document.querySelector("#date");
         const searchInput = document.querySelector("#search");
 
@@ -335,13 +342,16 @@
 
         async function loadChanges() {
             try {
+                const isPeriod = viewSelect.value === "period";
+                const source = isPeriod ? periodSource : dailySource;
                 const response = await fetch(`${source}?t=${Date.now()}`, { cache: "no-store" });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const parsed = parseCsv(await response.text()).filter(item => item.time && item.action && item.name).map(item => ({ ...item, day: item.time.slice(0, 10) }));
-                allChanges = visibleChanges(parsed).sort((a, b) => b.time.localeCompare(a.time));
+                const parsed = parseCsv(await response.text()).filter(item => item.action && item.name).map(item => ({ ...item, day: isPeriod ? "period" : item.time.slice(0, 10) }));
+                allChanges = visibleChanges(parsed).sort((a, b) => String(b.time || b.to_date).localeCompare(String(a.time || a.to_date)));
                 const days = [...new Set(allChanges.map(item => item.day))];
                 const previous = dateSelect.value;
-                dateSelect.innerHTML = days.length ? days.map(day => `<option value="${day}">${day}</option>`).join("") : "<option>No data</option>";
+                const periodLabel = parsed[0] ? `${parsed[0].from_date} -> ${parsed[0].to_date}` : "Oldest -> latest";
+                dateSelect.innerHTML = days.length ? days.map(day => `<option value="${day}">${isPeriod ? periodLabel : day}</option>`).join("") : "<option>No data</option>";
                 if (days.includes(previous)) dateSelect.value = previous;
                 render();
                 document.querySelector("#status").textContent = `Updated ${new Date().toLocaleTimeString()}`;
@@ -353,6 +363,7 @@
 
         dateSelect.addEventListener("change", render);
         searchInput.addEventListener("input", render);
+        viewSelect.addEventListener("change", loadChanges);
         loadChanges();
         setInterval(loadChanges, refreshMs);
     </script>

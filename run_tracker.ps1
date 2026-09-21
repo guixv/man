@@ -109,6 +109,24 @@ if (Test-Path $SNAPSHOT_DIR) {
 }
 
 
+# Rebuild the comparison after old snapshots have been removed.
+"Refreshing retained snapshot comparison..." >> $RUN_LOG
+
+
+& $PYTHON tracker.py --refresh-period >> $RUN_LOG 2>&1
+
+
+$PERIOD_EXIT = $LASTEXITCODE
+
+
+if ($PERIOD_EXIT -ne 0) {
+
+    "Period comparison refresh failed with exit code $PERIOD_EXIT" >> $RUN_LOG
+
+    exit $PERIOD_EXIT
+}
+
+
 
 # =========================
 # Cleanup logs older than 30 days
