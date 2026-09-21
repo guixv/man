@@ -22,6 +22,8 @@ The dashboard reads `logs/changes.csv`, groups changes by date, hides an
 Added record when the same day also contains a Removed record with the same
 name, and refreshes every 60 seconds. It also has an `Oldest to latest` view
 backed by `logs/period_changes.csv`.
+The dashboard includes a daily Added/Removed double-line trend chart above
+the detailed list.
 
 The daily PowerShell job rebuilds `period_changes.csv` after removing snapshots
 older than 30 days. This keeps the comparison aligned with the oldest snapshot

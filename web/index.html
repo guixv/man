@@ -155,6 +155,43 @@
             gap: 8px;
         }
 
+        .chart-panel {
+            padding: 18px 20px 14px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+        }
+
+        .chart-wrap {
+            position: relative;
+            height: 280px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .legend {
+            display: flex;
+            gap: 18px;
+            color: var(--muted);
+            font: 12px ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .legend span::before {
+            display: inline-block;
+            width: 18px;
+            height: 3px;
+            margin: 0 7px 3px 0;
+            content: "";
+            background: var(--green);
+        }
+
+        .legend .removed-key::before {
+            background: var(--red);
+        }
+
         .row {
             display: grid;
             grid-template-columns: 116px 1fr minmax(160px, .65fr);
@@ -286,18 +323,29 @@
 
         <section>
             <div class="section-title">
+                <h2>Trend</h2>
+                <div class="legend"><span>Added</span><span class="removed-key">Removed</span></div>
+            </div>
+            <div class="chart-panel">
+                <div class="chart-wrap"><canvas id="trend-chart" aria-label="Added and removed members by day"></canvas></div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-title">
                 <h2>Activity</h2><span class="count" id="visible-count"></span>
             </div>
             <div class="rows" id="rows"></div>
         </section>
-        <footer>Source: logs/changes.csv · Refreshes automatically every 60 seconds</footer>
+        <footer>Source: logs/changes.csv · Refreshes automatically every hour</footer>
     </main>
 
     <script>
         const dailySource = "../logs/changes.csv";
         const periodSource = "../logs/period_changes.csv";
-        const refreshMs = 60000;
+        const refreshMs = 3600000;
         let allChanges = [];
+        let dailyChanges = [];
         const viewSelect = document.querySelector("#view");
         const dateSelect = document.querySelector("#date");
         const searchInput = document.querySelector("#search");
@@ -336,6 +384,77 @@
             document.querySelector("#removed-total").textContent = removed.length;
             document.querySelector("#visible-count").textContent = `${selected.length} records`;
             document.querySelector("#rows").innerHTML = selected.length ? selected.map(item => `<article class="row ${item.action.toLowerCase()}"><span class="badge">${item.action.toUpperCase()}</span><span class="name">${escapeHtml(item.name)}</span><span class="login">${escapeHtml(item.login)}</span></article>`).join("") : '<div class="empty">No changes for this date.</div>';
+            renderChart();
+        }
+
+        function renderChart() {
+            const canvas = document.querySelector("#trend-chart");
+            const bounds = canvas.getBoundingClientRect();
+            const ratio = window.devicePixelRatio || 1;
+            const width = Math.max(320, bounds.width);
+            const height = Math.max(220, bounds.height);
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            const context = canvas.getContext("2d");
+            context.scale(ratio, ratio);
+            context.clearRect(0, 0, width, height);
+
+            const days = [...new Set(dailyChanges.map(item => item.day))].sort();
+            if (!days.length) return;
+
+            const counts = days.map(day => ({
+                day,
+                Added: dailyChanges.filter(item => item.day === day && item.action === "Added").length,
+                Removed: dailyChanges.filter(item => item.day === day && item.action === "Removed").length,
+            }));
+            const maximum = Math.max(1, ...counts.flatMap(item => [item.Added, item.Removed]));
+            const padding = { top: 18, right: 20, bottom: 34, left: 32 };
+            const chartWidth = width - padding.left - padding.right;
+            const chartHeight = height - padding.top - padding.bottom;
+            const x = index => padding.left + (counts.length === 1 ? chartWidth / 2 : index * chartWidth / (counts.length - 1));
+            const y = value => padding.top + chartHeight - value * chartHeight / maximum;
+
+            context.font = "11px ui-sans-serif, system-ui, sans-serif";
+            context.fillStyle = "#68737d";
+            context.strokeStyle = "#ded8cd";
+            context.lineWidth = 1;
+            for (let tick = 0; tick <= maximum; tick += Math.max(1, Math.ceil(maximum / 4))) {
+                const tickY = y(tick);
+                context.beginPath();
+                context.moveTo(padding.left, tickY);
+                context.lineTo(width - padding.right, tickY);
+                context.stroke();
+                context.fillText(String(tick), 8, tickY + 4);
+            }
+
+            const drawLine = (key, color) => {
+                context.strokeStyle = color;
+                context.lineWidth = 2.5;
+                context.beginPath();
+                counts.forEach((item, index) => {
+                    const pointX = x(index);
+                    const pointY = y(item[key]);
+                    if (index === 0) context.moveTo(pointX, pointY);
+                    else context.lineTo(pointX, pointY);
+                });
+                context.stroke();
+                context.fillStyle = color;
+                counts.forEach((item, index) => {
+                    context.beginPath();
+                    context.arc(x(index), y(item[key]), 3.5, 0, Math.PI * 2);
+                    context.fill();
+                });
+            };
+
+            drawLine("Added", "#237a57");
+            drawLine("Removed", "#b44d42");
+            context.fillStyle = "#68737d";
+            const labelStep = Math.max(1, Math.ceil(counts.length / 6));
+            counts.forEach((item, index) => {
+                if (index % labelStep === 0 || index === counts.length - 1) {
+                    context.fillText(item.day, x(index) - 28, height - 10);
+                }
+            });
         }
 
         function escapeHtml(value) { return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char])); }
@@ -344,9 +463,13 @@
             try {
                 const isPeriod = viewSelect.value === "period";
                 const source = isPeriod ? periodSource : dailySource;
-                const response = await fetch(`${source}?t=${Date.now()}`, { cache: "no-store" });
+                const dailyResponse = await fetch(`${dailySource}?t=${Date.now()}`, { cache: "no-store" });
+                if (!dailyResponse.ok) throw new Error(`HTTP ${dailyResponse.status}`);
+                const dailyParsed = parseCsv(await dailyResponse.text()).filter(item => item.time && item.action && item.name).map(item => ({ ...item, day: item.time.slice(0, 10) }));
+                dailyChanges = visibleChanges(dailyParsed);
+                const response = isPeriod ? await fetch(`${source}?t=${Date.now()}`, { cache: "no-store" }) : dailyResponse;
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const parsed = parseCsv(await response.text()).filter(item => item.action && item.name).map(item => ({ ...item, day: isPeriod ? "period" : item.time.slice(0, 10) }));
+                const parsed = (isPeriod ? parseCsv(await response.text()) : dailyParsed).filter(item => item.action && item.name).map(item => ({ ...item, day: isPeriod ? "period" : item.time.slice(0, 10) }));
                 allChanges = visibleChanges(parsed).sort((a, b) => String(b.time || b.to_date).localeCompare(String(a.time || a.to_date)));
                 const days = [...new Set(allChanges.map(item => item.day))];
                 const previous = dateSelect.value;
