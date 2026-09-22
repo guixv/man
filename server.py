@@ -33,6 +33,11 @@ def run_tracker():
             text=True,
             encoding="utf-8",
         )
+        print("[tracker refresh] tracker.py output:")
+        print(process.stdout, end="")
+        if process.stderr:
+            print("[tracker refresh] stderr:")
+            print(process.stderr, end="")
         if process.returncode:
             raise RuntimeError(process.stderr.strip() or process.stdout.strip() or "tracker.py failed")
         update_state(stage="refreshing", message="Refreshing retained comparison...")
@@ -43,6 +48,11 @@ def run_tracker():
             text=True,
             encoding="utf-8",
         )
+        print("[tracker refresh] period comparison output:")
+        print(process.stdout, end="")
+        if process.stderr:
+            print("[tracker refresh] period comparison stderr:")
+            print(process.stderr, end="")
         if process.returncode:
             raise RuntimeError(process.stderr.strip() or process.stdout.strip() or "period refresh failed")
         update_state(running=False, stage="done", message="Latest members loaded")

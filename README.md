@@ -39,7 +39,10 @@ Then open `http://localhost:8765/web/` in a browser. The `Refresh members`
 button asks for confirmation, runs the tracker once, shows progress, and
 reloads the page data when finished. The daily
 `run_tracker.ps1` job keeps updating `logs/changes.csv`; refreshes will pick up
-new data automatically. The CSV files are intentionally ignored by Git.
+new data automatically. Manual refresh output, including Added and Removed
+members, is printed in the `server.py` console. Dates between the first and
+latest logged day are also shown as zero-change points in the trend chart.
+The CSV files are intentionally ignored by Git.
 
 ## Deploy to the scheduled Windows machine
 
