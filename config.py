@@ -1,9 +1,24 @@
 import os
 
-from dotenv import load_dotenv
+
+def load_env_file():
+	env_file = os.path.join(os.path.dirname(__file__), ".env")
+	if not os.path.exists(env_file):
+		return
+
+	with open(env_file, encoding="utf-8") as file:
+		for line in file:
+			line = line.strip()
+			if not line or line.startswith("#") or "=" not in line:
+				continue
+			key, value = line.split("=", 1)
+			key = key.strip()
+			value = value.strip().strip('"').strip("'")
+			if key:
+				os.environ.setdefault(key, value)
 
 
-load_dotenv()
+load_env_file()
 
 
 # GitHub Personal Access Token

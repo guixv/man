@@ -20,7 +20,7 @@ snapshots/members_20260727.csv
 
 The dashboard reads `logs/changes.csv`, groups changes by date, hides an
 Added record when the same day also contains a Removed record with the same
-name, and refreshes every 60 seconds. It also has an `Oldest to latest` view
+name, and refreshes every hour. It also has an `Oldest to latest` view
 backed by `logs/period_changes.csv`.
 The dashboard includes a daily Added/Removed double-line trend chart above
 the detailed list.
@@ -49,7 +49,6 @@ job:
 ```powershell
 Set-Location "path\to\man"
 git pull origin main
-python -m pip install -r requirements.txt
 ```
 
 Keep the real `.env` on that machine. Also keep the dated files in
